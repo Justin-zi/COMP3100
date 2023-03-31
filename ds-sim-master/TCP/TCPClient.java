@@ -77,15 +77,17 @@ public class TCPClient{
 					String[] currentCoreInfo = str.split(" ");
 					int temp = Integer.parseInt(currentCoreInfo[4]);
 					
-					if(temp > coreInfo) {
-						coreInfo = temp;
+					if(temp == coreInfo) {
 						count++;
-					}
-					if(currentCore == temp) {
+					} 
+					else if(temp >= coreInfo) {
+						coreInfo = temp;
 						count = 1;
-					}	
+					}
+					else{;}
+
 				}
-				Sysoute.out.println("No. of largest servers: " + count); //check number of largest servers
+				System.out.println("No. of largest servers: " + count); //check number of largest servers
 				System.out.println("Largest core no: " + coreInfo); //check largest server;
 				
 				String[] largestServerInfo = str.split(" ");
@@ -106,11 +108,38 @@ public class TCPClient{
 				str = (String)din.readLine();
 				System.out.println("RCVD: " + str);
 				
-				String [] jobInfo = str.split(" ");
-				String jobID = jobInfo[2];
 				
-				
+				int serverID = 0;
+				while(str != "NONE") {
 					
+					String[] jobInfo = str.split(" ");
+					String jobID = jobInfo[2];
+					String jobType = jobInfo[0];
+					
+					//if(jobID[0].equals("JCPL")) {
+					//	dout.write(("REDY\n").getBytes());
+					//	dout.flush();
+					//	System.out.println("SENT: REDY");
+					//}
+					
+					serverID = serverID % count;
+					
+					dout.write(("SCHD " + jobID + " " + serverType + " " + serverID + "\n").getBytes());
+					dout.flush();
+					System.out.println("SENT: SCHD " + jobID + " " + serverType + " " + serverID);
+					serverID++;
+					
+					str = (String)din.readLine();
+					System.out.println("RCVD: " + str);
+					
+					dout.write(("REDY\n").getBytes());
+					dout.flush();
+					System.out.println("SENT: REDY");
+					
+					str = (String)din.readLine();
+					System.out.println("RCVD: " + str);
+				
+				}
 				
 				// ------- >
 				
