@@ -19,7 +19,7 @@ public class dsClient {
         //Establish handshake
         send("HELO");
         receive();
-        send("AUTH " + "justin");
+        send("AUTH " + System.getProperty("user.name"));
         receive();
         send("REDY");
         receive();
