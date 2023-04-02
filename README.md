@@ -6,6 +6,6 @@ This project was built on top the https://github.com/distsys-MQ/ds-sim
 - Run ds-server and java dsClient || ./<scriptFile> dsClient.class -n
 
 
-##Contributions
+## Contributions
 - Justin Ling 45156417
 
