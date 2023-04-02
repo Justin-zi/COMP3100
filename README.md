@@ -1,2 +1,11 @@
 ## Distributed Systems COMP3100 Macquarie University. 
-# Building a simple DS server 
+# Stage 1 - Build a Distributed System Client
+This project was built on top the https://github.com/distsys-MQ/ds-sim
+- Clone or download the project
+- Recompile dsClient.java if neccessary
+- Run ds-server and java dsClient || ./<scriptFile> dsClient.class -n
+
+
+##Contributions
+- Justin Ling 45156417
+
