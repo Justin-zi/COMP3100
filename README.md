@@ -6,6 +6,8 @@ This project was built on top the https://github.com/distsys-MQ/ds-sim
 - Run ds-server and java dsClient || ./insertScriptFile.sh dsClient.class -n
 - Note - When runnign the Test.sh file with the dsClient.class -> Ensure the folder contains the ds-Client & ds-Server executables
 
+# Stage 2 - Design and implementation of a new scheduling algorithm
+
 
 ## Contributions
 - Justin Ling 45156417
