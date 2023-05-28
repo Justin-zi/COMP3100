@@ -50,25 +50,61 @@ public class client {
         receive();
         messages = firstJob;
 
-        while (!messages.equals("NONE")) {
-            String[] parts = messages.split(" ");
-            Integer jobId = Integer.parseInt(parts[2]);
+while (!messages.equals("NONE")) {
+    String[] parts = messages.split(" ");
+    Integer jobId = Integer.parseInt(parts[2]);
 
-            if (messages.contains("JOBN")) {
-                for (String[] server : servers) {
-                    // assuming server[4] represents cores, server[5] represents memory, and server[6] represents disk
-                    if (Integer.parseInt(server[4]) >= Integer.parseInt(parameter[4]) &&
-                        Integer.parseInt(server[5]) >= Integer.parseInt(parameter[5]) &&
-                        Integer.parseInt(server[6]) >= Integer.parseInt(parameter[6])) {
-                        send("SCHD " + jobId + " " + server[0] + " " + server[1]);
-                        receive();
-                        break;
-                    }
-                }
+    if (messages.contains("JOBN")) {
+        boolean jobScheduled = false;
+        for (int i = 0; i < servers.size(); i++) {
+            String[] server = servers.get(i);
+            // assuming server[4] represents cores, server[5] represents memory, and server[6] represents disk
+            if (Integer.parseInt(server[4]) >= Integer.parseInt(parts[4]) &&
+                Integer.parseInt(server[5]) >= Integer.parseInt(parts[5]) &&
+                Integer.parseInt(server[6]) >= Integer.parseInt(parts[6])) {
+                send("SCHD " + jobId + " " + server[0] + " " + server[1]);
+                receive();
+
+                // assuming server[2] represents state
+                server[2] = "active"; // or however you want to denote that the server is now busy
+                server[4] = String.valueOf(Integer.parseInt(server[4]) - Integer.parseInt(parts[4])); // update cores
+                server[5] = String.valueOf(Integer.parseInt(server[5]) - Integer.parseInt(parts[5])); // update memory
+                server[6] = String.valueOf(Integer.parseInt(server[6]) - Integer.parseInt(parts[6])); // update disk
+
+                jobScheduled = true;
+                break;
             }
-            send("REDY");
+        }
+        
+        // If job couldn't be scheduled, we request for server's status updates
+        if (!jobScheduled) {
+            // Requesting capable servers for this particular job
+            send("GETS Capable " + parts[4] + " " + parts[5] + " " + parts[6]);
+            receive();
+
+            // Parse the response to get the number of capable servers
+            sRequestInfo = messages.split(" ");
+            noServers = Integer.parseInt(sRequestInfo[1]);
+
+            send("OK");
+            
+            servers.clear(); // clear the old list of servers
+            for(int i=0; i<noServers; i++) {
+                receive();
+                String[] serverInfo = messages.split(" ");
+                servers.add(serverInfo);
+            }
+
+            send("OK");
             receive();
         }
+    }
+    send("REDY");
+    receive();
+}
+
+
+
 
         send("QUIT");
         receive();
