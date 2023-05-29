@@ -2,103 +2,97 @@ import java.net.*;
 import java.io.*;
 
 class client {
-    static String receivedMessage = "";
-    static String currentMessage = "";
+    static String messages = "";
+    static String currMessages = "";
     public static void main(String args[]) throws Exception {
         Socket socket = new Socket("localhost", 50000);
         DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
         BufferedReader inputReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         
         sendMessage(outputStream, "HELO");
-        receivedMessage = receiveMessage(inputReader);
+        messages = receiveMessage(inputReader);
         String username = System.getProperty("user.name");
         sendMessage(outputStream, "AUTH " + username);
-        receivedMessage = receiveMessage(inputReader);
+        messages = receiveMessage(inputReader);
 
-        if (receivedMessage.equals("OK")) {
-            System.out.println("Authentication successful.");
+if (messages.equals("OK")) {
+    System.out.println("Authentication successful.");
 
-            sendMessage(outputStream, "REDY");
+    sendMessage(outputStream, "REDY");
 
-            receivedMessage = receiveMessage(inputReader);
+    messages = receiveMessage(inputReader);
 
-            while (!receivedMessage.equals("NONE")) {
-                boolean isFirst = true;
-                boolean isJobScheduled = false;
+    while (!messages.equals("NONE")) {
+        sendMessage(outputStream, "REDY");
+        currMessages = receiveMessage(inputReader);
+        boolean isFirstJob = currMessages.contains("JOBN") || currMessages.contains("JOBP");
+        boolean isJobScheduled = false;
 
-                sendMessage(outputStream, "REDY");
-                currentMessage = receiveMessage(inputReader);
+        if (isFirstJob) {
+            String[] dataArray = currMessages.split(" ");
+            int jobId = Integer.parseInt(dataArray[2]);
+            int jobCores = Integer.parseInt(dataArray[4]);
+            int jobMemory = Integer.parseInt(dataArray[5]);
+            int jobDisk = Integer.parseInt(dataArray[6]);
 
-                if (currentMessage.contains("JOBN") || currentMessage.contains("JOBP")) {
-  
-                    String[] dataArray = currentMessage.split(" ");
-                    int jobID = Integer.parseInt(dataArray[2]);
-                    int jobCores = Integer.parseInt(dataArray[4]);
-                    int jobMemory = Integer.parseInt(dataArray[5]);
-                    int jobDisk = Integer.parseInt(dataArray[6]);
+            sendMessage(outputStream, "GETS Capable " + jobCores + " " + jobMemory + " " + jobDisk);
+            messages = receiveMessage(inputReader);
 
-                    sendMessage(outputStream, "GETS Capable " + jobCores + " " + jobMemory + " " + jobDisk);
+            String[] dataArray2 = messages.split(" ");
+            int numOfRecords = Integer.parseInt(dataArray2[1]);
 
-                    receivedMessage = receiveMessage(inputReader);
+            sendMessage(outputStream, "OK");
 
+            String firstServerName = "";
+            int serverID = 0;
+            int serverCores = 0;
+            int serverMemory = 0;
+            int serverDisk = 0;
+            int noJobsWaiting = 0;
+            String serverType = "";
+            int scheduleID = 0;
 
-                    String[] dataArray2 = receivedMessage.split(" ");
-                    int numOfRecords = Integer.parseInt(dataArray2[1]);
+            for (int i = 0; i < numOfRecords; i++) {
+                messages = receiveMessage(inputReader);
+                String[] dataArray3 = messages.split(" ");
 
-                    sendMessage(outputStream, "OK");
-
-                    String firstServerType = "";
-                    int firstServerID = 0;
-                    int serverCores = 0;
-                    int serverMemory = 0;
-                    int serverDisk = 0;
-                    int waitingJobs = 0;
-                    String serverType = "";
-                    int scheduledServerID = 0;
-
-                    for (int i = 0; i < numOfRecords; i++) {
-                        receivedMessage = receiveMessage(inputReader);
-                        String[] dataArray3 = receivedMessage.split(" ");
-
-                        if (isFirst) {
-                            firstServerType = dataArray3[0];
-                            firstServerID = Integer.parseInt(dataArray3[1]);
-                            isFirst = false;
-                        }
-
-                        serverCores = Integer.parseInt(dataArray3[4]);
-                        serverMemory = Integer.parseInt(dataArray3[5]);
-                        serverDisk = Integer.parseInt(dataArray3[6]);
-                        waitingJobs = Integer.parseInt(dataArray3[7]);
-
-          
-                        if (waitingJobs == 0 && jobCores <= serverCores && jobMemory <= serverMemory
-                                && jobDisk <= serverDisk && !isJobScheduled) {
-                            serverType = dataArray3[0];
-                            scheduledServerID = Integer.parseInt(dataArray3[1]);
-                            isJobScheduled = true;
-                        }
-                    }
-
-   
-                    sendMessage(outputStream, "OK");
-                    receivedMessage = receiveMessage(inputReader);
-
-                   
-                    if (!isJobScheduled) {
-                        serverType = firstServerType;
-                        scheduledServerID = firstServerID;
-                    }
-                    sendMessage(outputStream, "SCHD " + jobID + " " + serverType + " " + scheduledServerID);
-
-                    receivedMessage = receiveMessage(inputReader);
-                } else {
-                    receivedMessage = currentMessage;
+                if (isFirstJob) {
+                    firstServerName = dataArray3[0];
+                    serverID = Integer.parseInt(dataArray3[1]);
+                    isFirstJob = false;
                 }
-            }  
-        }
 
-        sendQUIT(outputStream, inputReader);
+                serverCores = Integer.parseInt(dataArray3[4]);
+                serverMemory = Integer.parseInt(dataArray3[5]);
+                serverDisk = Integer.parseInt(dataArray3[6]);
+                noJobsWaiting = Integer.parseInt(dataArray3[7]);
+
+                if (noJobsWaiting == 0 && jobCores <= serverCores && jobMemory <= serverMemory
+                        && jobDisk <= serverDisk && !isJobScheduled) {
+                    serverType = dataArray3[0];
+                    scheduleID = Integer.parseInt(dataArray3[1]);
+                    isJobScheduled = true;
+                }
+            }
+
+            sendMessage(outputStream, "OK");
+            messages = receiveMessage(inputReader);
+
+            if (!isJobScheduled) {
+                serverType = firstServerName;
+                scheduleID = serverID;
+            }
+
+            sendMessage(outputStream, "SCHD " + jobId + " " + serverType + " " + scheduleID);
+            messages = receiveMessage(inputReader);
+        } else {
+            messages = currMessages;
+        }
+    }
+}
+
+
+        quit(outputStream, inputReader);
 
 
         outputStream.close();
@@ -114,12 +108,12 @@ class client {
         return inputReader.readLine();
     }
 
-    static void sendQUIT(DataOutputStream outputStream, BufferedReader inputReader) throws Exception {
+    static void quit(DataOutputStream outputStream, BufferedReader inputReader) throws Exception {
         sendMessage(outputStream, "QUIT");
 
-        String receivedMessage = receiveMessage(inputReader);
+        String messages = receiveMessage(inputReader);
 
-        if (receivedMessage.equals("QUIT")) {
+        if (messages.equals("QUIT")) {
             System.out.println("Simulation terminated gracefully.");
         }
     }
