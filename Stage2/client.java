@@ -25,7 +25,7 @@ class client {
         messages = receiveMessage(inputReader);
 
         if (messages.equals("OK")) {
-            System.out.println("AUTH'D: ");
+            System.out.println("Authentication successful.");
 
             sendMessage(outputStream, "REDY");
 
@@ -47,37 +47,39 @@ class client {
                     sendMessage(outputStream, "GETS Capable " + jobCores + " " + jobMemory + " " + jobDisk);
                     messages = receiveMessage(inputReader);
 
-                    String[] serverInfoRec = messages.split(" ");
-                    int numOfRecords = Integer.parseInt(serverInfoRec[1]);
+                    String[] serverRecs = messages.split(" ");
+                    int numOfRecords = Integer.parseInt(serverRecs[1]);
 
                     sendMessage(outputStream, "OK");
 
                     for (int i = 0; i < numOfRecords; i++) {
                         messages = receiveMessage(inputReader);
-                        String[] serverInfoMain = messages.split(" ");
+                        String[] serverFirst = messages.split(" ");
+
                         if (first) {
-                            firstServerName = serverInfoMain[0];
-                            serverID = Integer.parseInt(serverInfoMain[1]);
+                            firstServerName = serverFirst[0];
+                            serverID = Integer.parseInt(serverFirst[1]);
                             first = false;
                         }
 
-                        serverCores = Integer.parseInt(serverInfoMain[4]);
-                        serverMemory = Integer.parseInt(serverInfoMain[5]);
-                        serverDisk = Integer.parseInt(serverInfoMain[6]);
-                        noJobsWaiting = Integer.parseInt(serverInfoMain[7]);
-                        
+                        serverCores = Integer.parseInt(serverFirst[4]);
+                        serverMemory = Integer.parseInt(serverFirst[5]);
+                        serverDisk = Integer.parseInt(serverFirst[6]);
+                        noJobsWaiting = Integer.parseInt(serverFirst[7]);
+
                         boolean resources = noJobsWaiting == 0 && jobCores <= serverCores && jobMemory <= serverMemory && jobDisk <= serverDisk && !scheduled;
 
                         if (resources) {
-                            serverType = serverInfoMain[0];
-                            scheduleID = Integer.parseInt(serverInfoMain[1]);
+                            serverType = serverFirst[0];
+                            scheduleID = Integer.parseInt(serverFirst[1]);
                             scheduled = true;
                         }
                     }
+
                     sendMessage(outputStream, "OK");
                     messages = receiveMessage(inputReader);
 
-                    if (!scheduled) {
+                    if (scheduled) {
                         serverType = firstServerName;
                         scheduleID = serverID;
                     }
@@ -112,7 +114,7 @@ class client {
         String messages = receiveMessage(inputReader);
 
         if (messages.equals("QUIT")) {
-            System.out.println("QUIT");
+            System.out.println("Simulation terminated gracefully.");
         }
     }
 }
