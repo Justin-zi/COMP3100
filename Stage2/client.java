@@ -38,40 +38,40 @@ class client {
                 boolean scheduled = false;
 
                 if (first) {
-                    String[] dataArray = currMessages.split(" ");
-                    int jobId = Integer.parseInt(dataArray[2]);
-                    int jobCores = Integer.parseInt(dataArray[4]);
-                    int jobMemory = Integer.parseInt(dataArray[5]);
-                    int jobDisk = Integer.parseInt(dataArray[6]);
+                    String[] serverArr = currMessages.split(" ");
+                    int jobId = Integer.parseInt(serverArr[2]);
+                    int jobCores = Integer.parseInt(serverArr[4]);
+                    int jobMemory = Integer.parseInt(serverArr[5]);
+                    int jobDisk = Integer.parseInt(serverArr[6]);
 
                     sendMessage(outputStream, "GETS Capable " + jobCores + " " + jobMemory + " " + jobDisk);
                     messages = receiveMessage(inputReader);
 
-                    String[] dataArray2 = messages.split(" ");
-                    int numOfRecords = Integer.parseInt(dataArray2[1]);
+                    String[] serverRec = messages.split(" ");
+                    int numOfRecords = Integer.parseInt(serverRec[1]);
 
                     sendMessage(outputStream, "OK");
 
                     for (int i = 0; i < numOfRecords; i++) {
                         messages = receiveMessage(inputReader);
-                        String[] dataArray3 = messages.split(" ");
+                        String[] serverInfo = messages.split(" ");
         
                         if (first) {
-                            firstServerName = dataArray3[0];
-                            serverID = Integer.parseInt(dataArray3[1]);
+                            firstServerName = serverInfo[0];
+                            serverID = Integer.parseInt(serverInfo[1]);
                             first = false;
                         }
 
-                        serverCores = Integer.parseInt(dataArray3[4]);
-                        serverMemory = Integer.parseInt(dataArray3[5]);
-                        serverDisk = Integer.parseInt(dataArray3[6]);
-                        noJobsWaiting = Integer.parseInt(dataArray3[7]);
+                        serverCores = Integer.parseInt(serverInfo[4]);
+                        serverMemory = Integer.parseInt(serverInfo[5]);
+                        serverDisk = Integer.parseInt(serverInfo[6]);
+                        noJobsWaiting = Integer.parseInt(serverInfo[7]);
                         
                         boolean resources = noJobsWaiting == 0 && jobCores <= serverCores && jobMemory <= serverMemory && jobDisk <= serverDisk && !scheduled;
 
                         if (resources) {
-                            serverType = dataArray3[0];
-                            scheduleID = Integer.parseInt(dataArray3[1]);
+                            serverType = serverInfo[0];
+                            scheduleID = Integer.parseInt(serverInfo[1]);
                             scheduled = true;
                         }
                     }
