@@ -1,118 +1,136 @@
 import java.net.*;
 import java.io.*;
+import java.util.*;
 
 public class client {
-    private static final String SERVER_HOST = "localhost";
-    private static final int SERVER_PORT = 50000;
+    static DataOutputStream dout;
+    static BufferedReader din;
+    static String messages;
 
-    public static void main(String[] args) throws Exception {
-        try (Socket socket = new Socket(SERVER_HOST, SERVER_PORT);
-             DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream());
-             BufferedReader inputReader = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
+    static int jobId;
+    static int noRecs;
+    static int jobCores;
+    static int jobMem;
+    static int jobDisk;
+    static int cores;
+    static int memory;
+    static int disk;
+    static int scheduleId;
+    static int waitingJobs;
+    static int firstID;
+    static String serverType = "";
+    static String firstServerType = "";
 
-            String receivedMessage = " ";
-            String currentMessage = " ";
 
-            send(outputStream, "HELO");
-            receivedMessage = receive(inputReader);
+    public static void main(String[] args) {
+        try {
+            // Initialise socket, data input and data output streams
+            Socket s = new Socket("127.0.0.1", 50000);
+            dout = new DataOutputStream(s.getOutputStream());
+            din = new BufferedReader(new InputStreamReader(s.getInputStream()));
 
-            String username = System.getProperty("user.name");
-            send(outputStream, "AUTH " + username);
-            receivedMessage = receive(inputReader);
+            // Establish handshake
+            send("HELO");
+            receive();
+            send("AUTH " + System.getProperty("user.name"));
+            receive();
 
-            if (receivedMessage.equals("OK")) {
-                System.out.println("Authentication successful.");
+            if(messages.equals("OK")) {
+                System.out.println("We made it INSIDE");
+                
+                send("REDY");
+                receive();
+                String[] serverInfo = null;
 
-                send(outputStream, "REDY");
-                receivedMessage = receive(inputReader);
+                while(!messages.equals("NONE")) {
+                    send("REDY");
 
-                while (!receivedMessage.equals("NONE")) {
-                    boolean isJobScheduled = false;
+                    if(messages.equals("JOBP") || messages.equals("JOBN")) {
+                        serverInfo = messages.split("");
+                        send("GETS Capable " + serverInfo[4] + " " + serverInfo[5] + " " + serverInfo[6]);
+                        receive();
 
-                    if (receivedMessage.contains("JOBN") || receivedMessage.contains("JOBP")) {
-                        String[] dataArray = receivedMessage.split(" ");
-                        int jobID = Integer.parseInt(dataArray[2]);
-                        int jobCores = Integer.parseInt(dataArray[4]);
-                        int jobMemory = Integer.parseInt(dataArray[5]);
-                        int jobDisk = Integer.parseInt(dataArray[6]);
+                        String[] serverReq = messages.split(" ");
+                        int noServers = Integer.parseInt(serverReq[1]);
+                        send("OK");
 
-                        send(outputStream, "GETS Capable " + jobCores + " " + jobMemory + " " + jobDisk);
-                        receivedMessage = receive(inputReader);
+                        boolean first = true;
+                        boolean scheduled = false;
 
-                        String[] dataArray2 = receivedMessage.split(" ");
-                        int numOfRecords = Integer.parseInt(dataArray2[1]);
+                        for(int i=0; i<noServers; i++) {
+                            receive();
+                            String[] serverDetails = messages.split("");
 
-                        sendOK(outputStream);
 
-                        int firstServerID = 0;
-                        String firstServerType = "";
-                        int waitingJobs = 0;
+                            cores = Integer.parseInt(serverDetails[4]);
+                            memory = Integer.parseInt(serverDetails[5]);
+                            disk = Integer.parseInt(serverDetails[6]);
+                            waitingJobs = Integer.parseInt(serverDetails[7]);
 
-                        for (int i = 0; i < numOfRecords; i++) {
-                            String[] dataArray3 = receiveAndSplit(inputReader);
-                            String serverType = dataArray3[0];
-                            int serverID = Integer.parseInt(dataArray3[1]);
-                            int serverCores = Integer.parseInt(dataArray3[4]);
-                            int serverMemory = Integer.parseInt(dataArray3[5]);
-                            int serverDisk = Integer.parseInt(dataArray3[6]);
-                            waitingJobs = Integer.parseInt(dataArray3[7]);
-
-                            if (i == 0) {
-                                firstServerType = serverType;
-                                firstServerID = serverID;
+                            if(first) {
+                                firstServerType = serverDetails[0];
+                                firstID = Integer.parseInt(serverDetails[1]);
+                                first = false;
                             }
 
-                            if (waitingJobs == 0 && jobCores <= serverCores && jobMemory <= serverMemory
-                                    && jobDisk <= serverDisk && !isJobScheduled) {
-                                send(outputStream, "SCHD " + jobID + " " + serverType + " " + serverID);
-                                isJobScheduled = true;
+                            if(waitingJobs == 0 && 
+                            Integer.parseInt(serverInfo[4]) <= cores && 
+                            Integer.parseInt(serverInfo[5]) <= memory &&
+                            Integer.parseInt(serverInfo[6]) <= disk && !scheduled) {
+                                serverType = serverDetails[0];
+                                scheduleId = Integer.parseInt(serverDetails[1]);
+                                scheduled = true;
                             }
                         }
 
-                        sendOK(outputStream);
-                        receivedMessage = receive(inputReader);
+                        send("OK");
+                        receive();
 
-                        if (!isJobScheduled) {
-                            send(outputStream, "SCHD " + jobID + " " + firstServerType + " " + firstServerID);
+                        if(!scheduled) {
+                            serverType = firstServerType;
+                            scheduleId = firstID;
                         }
-                    } else {
-                        receivedMessage = currentMessage;
+
+                        send("SCHD " + jobId + " " + serverType + " " + scheduleId);
+                        receive();
                     }
-
-                    send(outputStream, "REDY");
-                    receivedMessage = receive(inputReader);
                 }
-
-                System.out.println("No more jobs to schedule. Waiting jobs: ");
-            } else {
-                System.out.println("Authentication failed.");
+                System.out.println("No more jobs to schedule");
             }
+            else {
+                System.out.println("We didn't make it :(");
+            }
+            send("QUIT");
+            receive();
+            // Close input, output and socket
+            din.close();
+            dout.close();
+            s.close();
 
-            sendQUIT(outputStream, inputReader);
+        } catch (IOException e) {
+            System.out.println("Socket error: " + e);
         }
-
-        System.out.println("Simulation terminated gracefully.");
     }
 
-    static void send(DataOutputStream outputStream, String message) throws IOException {
-        outputStream.write((message + "\n").getBytes());
-        outputStream.flush();
+    static void send(String input) {
+        try {
+            String message = input + "\n";
+            dout.write(message.getBytes());
+            dout.flush();
+            System.out.println("C: " + input);
+        } catch (Exception e) {
+            System.out.println("Exception from SEND : " + e + " " + input);
+        }
     }
 
-    static String receive(BufferedReader inputReader) throws IOException {
-        return inputReader.readLine().trim();
-    }
-    static void sendOK(DataOutputStream outputStream) throws IOException {
-        send(outputStream, "OK");
-    }
-    
-    static void sendQUIT(DataOutputStream outputStream, BufferedReader inputReader) throws IOException {
-        send(outputStream, "QUIT");
-        receive(inputReader); // Ignore the termination response from the server
-    }
-    
-    static String[] receiveAndSplit(BufferedReader inputReader) throws IOException {
-        String receivedMessage = inputReader.readLine();
-        return receivedMessage.split(" ");
+    static String receive() {
+        try {
+            messages = din.readLine();
+            System.out.println("S: " + messages);
+            return messages;
+        } catch (Exception e) {
+            System.out.println("Exception from RECEIVE : " + e);
+            return null;
+        }
     }
 }
